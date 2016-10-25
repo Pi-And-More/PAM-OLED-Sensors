@@ -12,7 +12,9 @@ U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE);
 #include <SI7021.h>
 
 #if defined(ESP8266)
-// For the ESP8266 we need these to be defined
+//
+// For the ESP8266 we need these to be defined for I2C
+//
 #define SDA 4
 #define SCL 5
 #endif
@@ -52,15 +54,23 @@ SFE_BMP180 pressure;
 boolean hasBMP = false;
 double temperature2,pressure2,altitude2;
 
-// LCD
+//
+// LCD, the function that is called to draw to the OLED
+//
 void draw() {
-//  u8g.setFont(u8g_font_unifont);
+  //
+  // Set the correct values for drawing with the u8g library
+  //
   u8g.setFont(u8g_font_6x10);
   u8g.setFontRefHeightExtendedText();
   u8g.setDefaultForegroundColor();
   u8g.setFontPosTop();
   char printThis[14];
   String t;
+  //
+  // Temperature from SI7021 and if we have it
+  // the BMP180 (which is than averaged)
+  //
   float tmp2 = temperature;
   if (hasBMP) {
     tmp2 = (tmp2+temperature2)/2;
@@ -68,15 +78,28 @@ void draw() {
   t = "Temp:";
   t.toCharArray(printThis,13);
   u8g.drawStr(0,0,printThis);
+  //
+  // The temperature with degrees and C added
+  //
   t = String(tmp2,1)+" "+(char)176+"C";
   t.toCharArray(printThis,13);
   u8g.drawStr(50,0,printThis);
+  //
+  // Humidity from the SI7021
+  //
   t = "Humi:";
   t.toCharArray(printThis,14);
   u8g.drawStr(0,11,printThis);
+  //
+  // The humidity and % added
+  //
   t = String(humidity)+" %";
   t.toCharArray(printThis,14);
   u8g.drawStr(50,11,printThis);
+  //
+  // The lux from the BH1750 and from the
+  // TSL2561 if we have it (it is averaged if we have it)
+  //
   t = "Lux:";
   t.toCharArray(printThis,14);
   u8g.drawStr(0,22,printThis);
@@ -84,63 +107,99 @@ void draw() {
   if (hasTSL) {
     tmp = (tmp+lux1)/2;
   }
+  //
+  // The lux with lx added
+  //
   t = String(tmp)+" lx";
   t.toCharArray(printThis,8);
   u8g.drawStr(50,22,printThis);
+  //
+  // The pressure from the BMP180
+  //
   t = "Press:";
   t.toCharArray(printThis,14);
   u8g.drawStr(0,33,printThis);
+  //
+  // The pressure with mb added
+  //
   t = String(pressure2,0)+" mb";
   t.toCharArray(printThis,14);
   u8g.drawStr(50,33,printThis);
+  //
+  // The altitude from BMP180
+  //
   t = "Alti:";
   t.toCharArray(printThis,14);
   u8g.drawStr(0,44,printThis);
+  //
+  // The altitude with m added
+  //
   t = String(altitude2,0)+" m";
   t.toCharArray(printThis,14);
   u8g.drawStr(50,44,printThis);
 }
 
 void setup() {
-// SI7021
+  //
+  // I2C startup
+  //
 #if defined(ESP8266)
-// For the ESP8266 we need to start the sensor with SDA and SCL pin numbers
+  //
+  // For the ESP8266 we need to start the sensor with SDA and SCL pin numbers
+  //
   sensor.begin(SDA,SCL);
 #else
-// For Arduino we can just call begin.
+  //
+  // For Arduino we can just call begin.
+  //
   sensor.begin();
 #endif
+  //
+  // SI7021
+  //
   temperature = 0;
   humidity = 0;
-
-// TSL2561
+  
+  //
+  // TSL2561
+  //
   if (tsl.begin()) {
     hasTSL = true;
     tsl.setGain(TSL2561_GAIN_16X);
     tsl.setTiming(TSL2561_INTEGRATIONTIME_13MS);
   }
 
-// BH1750
+  //
+  // BH1750
+  //
   lightMeter.begin();
-// BMP180
+  //
+  // BMP180
+  //
   if (pressure.begin()) {
     hasBMP = true;
-}
+  }
 }
 
 void loop() {
-  // LCD
+  //
+  // LCD, the draw routine is handled by the u8g library
+  //
   u8g.firstPage();  
   do {
      draw();
   } while(u8g.nextPage());
 
+  //
   // SI7021
+  //
   temperature = sensor.getCelsiusHundredths();
   temperature = temperature / 100;
   humidity = sensor.getHumidityPercent();
 
-// TSL2561
+  //
+  // TSL2561
+  //
   if (hasTSL) {
     uint32_t lum = tsl.getFullLuminosity();
     uint16_t ir, full;
@@ -149,10 +208,14 @@ void loop() {
     lux1 = tsl.calculateLux(full, ir);
   }
 
-// BH1750
+  //
+  // BH1750
+  //
   lux2 = lightMeter.readLightLevel();
 
-// BMP180
+  //
+  // BMP180
+  //
   if (hasBMP) {
     char status;
     status = pressure.startTemperature();
